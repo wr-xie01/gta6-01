@@ -1,0 +1,1 @@
+{"description":"Solmar Bay — an original open-world crime game (make.fun gta6-01 entry)","engines":{"node":">=22"},"name":"solmar-bay","private":true,"scripts":{"build":"mkdir -p out && MAKEFUN_OUTPUT_DIR=out node main.ts","serve":"node serve.ts"},"type":"module","version":"1.0.0"}

@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<link rel="icon" href="data:,">
+<title>Solmar Bay — an open-world crime game</title>
+<style>
+  :root { --panel: rgba(12, 16, 24, 0.82); --accent: #f1c40f; --text: #f2f2f2; }
+  * { box-sizing: border-box; margin: 0; padding: 0; }
+  html, body { width: 100%; height: 100%; overflow: hidden; background: #0b0e14; font-family: "Segoe UI", system-ui, -apple-system, sans-serif; color: var(--text); }
+  #game { display: block; width: 100vw; height: 100vh; }
+  .hidden { display: none !important; }
+  /* HUD */
+  #hud { position: fixed; inset: 0; pointer-events: none; z-index: 5; }
+  #topbar { position: absolute; top: 12px; left: 12px; display: flex; gap: 14px; align-items: flex-start; }
+  .pill { background: var(--panel); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 7px 12px; font-size: 15px; line-height: 1.2; }
+  #stars { font-size: 20px; letter-spacing: 2px; color: var(--accent); min-width: 118px; text-align: center; }
+  #stars .off { color: rgba(255,255,255,0.28); }
+  #healthbar { width: 170px; height: 12px; background: rgba(255,255,255,0.15); border-radius: 6px; overflow: hidden; margin-top: 5px; }
+  #healthfill { height: 100%; width: 100%; background: linear-gradient(90deg, #2ecc71, #27ae60); transition: width 0.2s; }
+  #healthfill.low { background: linear-gradient(90deg, #e74c3c, #c0392b); }
+  #money { color: #2ecc71; font-weight: 700; }
+  #objective { max-width: 340px; }
+  #objective .label { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+  #objective .text { font-size: 14px; }
+  #missiontimer { color: #ff9f43; font-weight: 700; }
+  #minimap-wrap { position: absolute; top: 12px; right: 12px; background: var(--panel); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 6px; }
+  #minimap { display: block; border-radius: 6px; }
+  #minimap-wrap .cap { font-size: 11px; opacity: 0.7; text-align: center; margin-top: 3px; letter-spacing: 1px; }
+  #dialogue { position: absolute; left: 50%; transform: translateX(-50%); bottom: 18px; width: min(640px, 92vw); background: var(--panel); border: 1px solid rgba(255,255,255,0.18); border-radius: 12px; padding: 12px 16px; }
+  #dialogue .speaker { color: var(--accent); font-weight: 700; font-size: 14px; }
+  #dialogue .line { font-size: 15px; margin-top: 2px; }
+  #flash { position: absolute; top: 22%; left: 50%; transform: translateX(-50%); font-size: 26px; font-weight: 800; color: #fff; text-shadow: 0 2px 12px rgba(0,0,0,0.8); text-align: center; }
+  #banner { position: absolute; top: 38%; left: 50%; transform: translateX(-50%); font-size: 34px; font-weight: 900; color: var(--accent); text-shadow: 0 2px 14px rgba(0,0,0,0.85); text-align: center; white-space: nowrap; }
+  #speedo { position: absolute; right: 14px; bottom: 14px; background: var(--panel); border: 1px solid rgba(255,255,255,0.18); border-radius: 10px; padding: 8px 14px; font-size: 14px; text-align: right; }
+  #speedo .big { font-size: 26px; font-weight: 800; }
+  /* Screens */
+  .screen { position: fixed; inset: 0; z-index: 10; display: flex; align-items: center; justify-content: center; background: radial-gradient(ellipse at 50% 30%, rgba(30,40,80,0.88), rgba(8,10,18,0.96)); }
+  .card { width: min(680px, 92vw); max-height: 92vh; overflow-y: auto; background: rgba(14,18,28,0.92); border: 1px solid rgba(255,255,255,0.16); border-radius: 18px; padding: 34px 38px; text-align: center; }
+  .card h1 { font-size: 52px; letter-spacing: 2px; color: var(--accent); text-shadow: 0 0 30px rgba(241,196,15,0.4); }
+  .card h1 .sub { display: block; font-size: 18px; letter-spacing: 6px; color: #fff; margin-top: 6px; }
+  .card h2 { font-size: 40px; color: var(--accent); }
+  .card p { font-size: 15px; line-height: 1.65; opacity: 0.92; margin: 12px 0; text-align: left; }
+  .card p.center { text-align: center; }
+  .controls { text-align: left; font-size: 14px; line-height: 1.9; background: rgba(255,255,255,0.06); border-radius: 10px; padding: 12px 18px; margin: 14px 0; }
+  .controls b { color: var(--accent); display: inline-block; min-width: 130px; }
+  .btn { pointer-events: auto; cursor: pointer; display: inline-block; background: var(--accent); color: #111; border: none; border-radius: 12px; padding: 14px 34px; font-size: 18px; font-weight: 800; margin: 8px 6px 0; }
+  .btn:hover { filter: brightness(1.1); }
+  .btn.ghost { background: transparent; color: var(--text); border: 1px solid rgba(255,255,255,0.4); }
+  .stats { display: flex; gap: 12px; justify-content: center; margin: 14px 0; flex-wrap: wrap; }
+  .stat { background: rgba(255,255,255,0.06); border-radius: 10px; padding: 10px 18px; }
+  .stat .n { font-size: 24px; font-weight: 800; color: var(--accent); }
+  .stat .l { font-size: 11px; opacity: 0.7; text-transform: uppercase; letter-spacing: 1px; }
+  #mission-list { text-align: left; }
+  #mission-list .m { border: 1px solid rgba(255,255,255,0.14); border-radius: 10px; padding: 10px 14px; margin: 8px 0; }
+  #mission-list .m.done { border-color: #2ecc71; }
+  #mission-list .m .t { font-weight: 700; }
+  #mission-list .m .r { color: #2ecc71; float: right; }
+  #mission-list .m .d { font-size: 13px; opacity: 0.8; margin-top: 3px; }
+  .help-hint { position: absolute; left: 12px; bottom: 12px; font-size: 12px; opacity: 0.75; background: var(--panel); border-radius: 8px; padding: 6px 10px; }
+</style>
+</head>
+<body>
+<canvas id="game" width="1280" height="800"></canvas>
+
+<div id="hud" class="hidden">
+  <div id="topbar">
+    <div class="pill" id="stars"></div>
+    <div class="pill"><div>HEALTH</div><div id="healthbar"><div id="healthfill"></div></div></div>
+    <div class="pill" id="money">$0</div>
+    <div class="pill" id="objective"><div class="label">Objective</div><div class="text" id="objective-text"></div><div id="missiontimer"></div></div>
+  </div>
+  <div id="minimap-wrap"><canvas id="minimap" width="216" height="168"></canvas><div class="cap">SOLMAR BAY · M = MAP</div></div>
+  <div id="dialogue" class="hidden"><div class="speaker" id="dlg-speaker"></div><div class="line" id="dlg-line"></div></div>
+  <div id="flash"></div>
+  <div id="banner"></div>
+  <div id="speedo" class="hidden"><span class="big" id="speed">0</span> km/h<div id="carname"></div></div>
+  <div class="help-hint">WASD move/drive · Mouse aim · E enter/exit car · Space punch/shoot · Shift sprint · P pause · H help · M missions</div>
+</div>
+
+<div id="start-screen" class="screen">
+  <div class="card">
+    <h1>SOLMAR BAY<span class="sub">AN OPEN-WORLD CRIME GAME</span></h1>
+    <p class="center" id="save-line"></p>
+    <p>Cole Maddox drove out of Solmar Bay five years ago and swore he would never come back. Now the city is calling again — and Lena, the fixer who never left, has work for him. Steal cars, lose the cops, run the packages, and pull off one last score. The whole city is yours: drive it, walk it, own it.</p>
+    <div class="controls">
+      <div><b>WASD / Arrows</b> Move on foot · Drive</div>
+      <div><b>Mouse</b> Aim (on foot)</div>
+      <div><b>E</b> Enter / exit a car</div>
+      <div><b>Space / Click</b> Punch · Shoot (with pistol)</div>
+      <div><b>Shift</b> Sprint</div>
+      <div><b>Q</b> Switch weapon (fists / pistol)</div>
+      <div><b>M</b> Mission list · <b>P / Esc</b> Pause · <b>H</b> Help</div>
+    </div>
+    <p class="center">Five missions. One city. Lose the cops — or pay for it.</p>
+    <button class="btn" id="btn-start">Start</button>
+    <button class="btn ghost hidden" id="btn-continue">Continue</button>
+    <button class="btn ghost" id="btn-help-start">How to play</button>
+  </div>
+</div>
+
+<div id="pause-screen" class="screen hidden">
+  <div class="card">
+    <h2>Paused</h2>
+    <p class="center">The city waits for no one — except right now.</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="pause-money">$0</div><div class="l">Money</div></div>
+      <div class="stat"><div class="n" id="pause-missions">0/5</div><div class="l">Missions</div></div>
+      <div class="stat"><div class="n" id="pause-stars">0</div><div class="l">Wanted stars</div></div>
+    </div>
+    <button class="btn" id="btn-resume">Resume</button>
+    <button class="btn ghost" id="btn-missions">Missions</button>
+    <button class="btn ghost" id="btn-help-pause">Help</button>
+    <button class="btn ghost" id="btn-quit">Quit to title</button>
+  </div>
+</div>
+
+<div id="gameover-screen" class="screen hidden">
+  <div class="card">
+    <h2 style="color:#e74c3c">WASTED</h2>
+    <p class="center">Cole Maddox went down in Solmar Bay. The city keeps moving.</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="go-money">$0</div><div class="l">Money kept</div></div>
+      <div class="stat"><div class="n" id="go-missions">0/5</div><div class="l">Missions done</div></div>
+    </div>
+    <button class="btn" id="btn-retry">Try again</button>
+    <button class="btn ghost" id="btn-title-go">Title screen</button>
+  </div>
+</div>
+
+<div id="busted-screen" class="screen hidden">
+  <div class="card">
+    <h2 style="color:#3498db">BUSTED</h2>
+    <p class="center">The Solmar Bay police took Cole in. Bail is $200 — the city is not done with him yet.</p>
+    <button class="btn" id="btn-busted">Pay bail &amp; continue</button>
+    <button class="btn ghost" id="btn-title-busted">Title screen</button>
+  </div>
+</div>
+
+<div id="missionfailed-screen" class="screen hidden">
+  <div class="card">
+    <h2 style="color:#ff9f43">MISSION FAILED</h2>
+    <p class="center" id="fail-reason"></p>
+    <button class="btn" id="btn-retry-mission">Retry mission</button>
+    <button class="btn ghost" id="btn-free-roam">Free roam instead</button>
+  </div>
+</div>
+
+<div id="storydone-screen" class="screen hidden">
+  <div class="card">
+    <h2>THE BIG SCORE — DONE</h2>
+    <p>Cole Maddox delivered the yellow sports car, shook the cops, and walked away with the money. Lena is already lining up the next job. Solmar Bay is his city now — every street, every car, every getaway.</p>
+    <div class="stats">
+      <div class="stat"><div class="n" id="sd-money">$0</div><div class="l">Money</div></div>
+      <div class="stat"><div class="n">5/5</div><div class="l">Missions done</div></div>
+    </div>
+    <button class="btn" id="btn-freeroam">Keep exploring</button>
+    <button class="btn ghost" id="btn-title-sd">Title screen</button>
+  </div>
+</div>
+
+<div id="help-screen" class="screen hidden">
+  <div class="card">
+    <h2>How to play</h2>
+    <div class="controls">
+      <div><b>WASD / Arrows</b> Move on foot · Drive (W accelerate, S brake/reverse, A/D steer)</div>
+      <div><b>Mouse</b> Aim your pistol while on foot</div>
+      <div><b>E</b> Get in / out of the nearest car (stealing a car raises your wanted level)</div>
+      <div><b>Space / Click</b> Punch (fists) or shoot (pistol)</div>
+      <div><b>Q</b> Switch between fists and pistol</div>
+      <div><b>Shift</b> Sprint on foot</div>
+      <div><b>M</b> Mission list — start the next job</div>
+      <div><b>P / Esc</b> Pause · <b>H</b> This help</div>
+    </div>
+    <p><b>Wanted level:</b> crimes (stealing cars, hitting people, shooting) raise your stars. Police cars chase and ram you; officers chase you on foot and will bust you if they catch you standing still. Break line of sight and hide to cool the heat down — when the stars hit zero, you are clear.</p>
+    <p><b>Missions:</b> press M and pick the next job, or just explore. The yellow diamond on the map and minimap is your objective. Completing a mission pays cash. Finish all five to complete the story.</p>
+    <p><b>Pickups:</b> green cash, red health kits, pistol crates, and gold packages are scattered around the city — walk or drive over them.</p>
+    <button class="btn" id="btn-help-close">Got it</button>
+  </div>
+</div>
+
+<div id="missions-screen" class="screen hidden">
+  <div class="card">
+    <h2>Missions</h2>
+    <div id="mission-list"></div>
+    <button class="btn" id="btn-missions-close">Close</button>
+  </div>
+</div>
+
+<script type="module" src="./src/main.js"></script>
+</body>
+</html>
